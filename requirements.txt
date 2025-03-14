@@ -1,0 +1,11 @@
+streamlit
+pandas
+pillow
+python-dotenv
+langchain
+langchain-google-genai
+google-generativeai
+openai
+chromadb
+youtube-search-python
+requests
