@@ -9,3 +9,4 @@ openai
 chromadb
 youtube-search-python
 requests
+langchain-google-genai
