@@ -10,6 +10,7 @@ import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
 
+
 # Load environment variables (Only once)
 load_dotenv()
 # 🔹 Pehle .env se API key lene ki koshish karein
