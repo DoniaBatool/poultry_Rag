@@ -2,7 +2,7 @@ import os
 import pdfplumber
 import pandas as pd
 from pdf2image import convert_from_path
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.schema import Document
 

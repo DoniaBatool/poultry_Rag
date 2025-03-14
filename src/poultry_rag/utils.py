@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv
 import pandas as pd
 from PIL import Image
-import fitz  # PyMuPDF for PDF processing
+import fitz  
 import streamlit as st
 import google.generativeai as genai
 import requests

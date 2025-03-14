@@ -6,8 +6,8 @@ from PIL import Image
 from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
 from langchain_google_genai import GoogleGenerativeAI
-from poultry_rag.utils import get_weather, get_youtube_videos, web_search
-from poultry_rag.vectorstore import load_documents
+from utils import get_weather, get_youtube_videos, web_search
+from vectorstore import load_documents
 
 load_dotenv()
 
