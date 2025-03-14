@@ -5,7 +5,7 @@ from pdf2image import convert_from_path
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.schema import Document
-from io import BytesIO
+
 
 def load_documents():
     """Load the stored vector database."""

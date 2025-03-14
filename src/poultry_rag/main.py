@@ -6,14 +6,18 @@ from PIL import Image
 from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
 from langchain_google_genai import GoogleGenerativeAI
-
 from poultry_rag.utils import get_weather, get_youtube_videos, web_search
 from poultry_rag.vectorstore import load_documents
 
-
-# Load environment variables
 load_dotenv()
+
+# Pehle .env se API key lene ki koshish karein
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+# Agar .env me key nahi mili, toh Streamlit secrets use karein (Cloud Deployment ke liye)
+if not GOOGLE_API_KEY:
+    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+
 
 # Streamlit UI
 st.title("🐔 EGGSPERT AI ASSISTANT")

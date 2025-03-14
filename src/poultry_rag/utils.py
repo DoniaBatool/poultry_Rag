@@ -12,11 +12,12 @@ from bs4 import BeautifulSoup
 
 # Load environment variables (Only once)
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
-GOOGLE_SEARCH_API = os.getenv("GOOGLE_SEARCH_API")
+# 🔹 Pehle .env se API key lene ki koshish karein
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or st.secrets.get("YOUTUBE_API_KEY")
+GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID") or st.secrets.get("GOOGLE_CSE_ID")
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY") or st.secrets.get("WEATHER_API_KEY")
+GOOGLE_SEARCH_API = os.getenv("GOOGLE_SEARCH_API") or st.secrets.get("GOOGLE_SEARCH_API")
 
 genai.configure(api_key=GOOGLE_API_KEY)
 # Function to perform Google Search
