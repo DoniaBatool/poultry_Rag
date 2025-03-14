@@ -1,22 +1,25 @@
-from io import BytesIO
+
 import os
 import streamlit as st
-import pandas as pd
-from PIL import Image
 from dotenv import load_dotenv
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.indexes import VectorstoreIndexCreator
+from utils import get_weather
+from langchain.embeddings import HuggingFaceEmbeddings
+import requests
 from langchain.chains import RetrievalQA
-from langchain_google_genai import GoogleGenerativeAI
-from utils import get_weather, get_youtube_videos, web_search
-from vectorstore import load_documents
+from langchain_groq import ChatGroq
+
+
+
 
 load_dotenv()
-
-# Pehle .env se API key lene ki koshish karein
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-# Agar .env me key nahi mili, toh Streamlit secrets use karein (Cloud Deployment ke liye)
-if not GOOGLE_API_KEY:
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY") or st.secrets.get("YOUTUBE_API_KEY")
+GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID") or st.secrets.get("GOOGLE_CSE_ID")
+GOOGLE_SEARCH_API = os.getenv("GOOGLE_SEARCH_API") or st.secrets.get("GOOGLE_SEARCH_API")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
 
 
 # Streamlit UI
@@ -55,91 +58,144 @@ with st.sidebar:
 
     with st.expander("🥚 Market Updates"):
         st.page_link("pages/egg_prices.py", label="Latest Egg Rates")
-# Load vectorstore
-vectorstore = load_documents()
 
-# User Query Section
-prompt = st.chat_input("Ask your poultry-related question...")
-
+ #==================================================================================       
+# ✅ Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "feedback" not in st.session_state:
+    st.session_state.feedback = []
 
+
+
+# ✅ Initialize the Groq Chat Model
+groq_chat = ChatGroq(
+    groq_api_key=GROQ_API_KEY,
+    model_name="llama3-8b-8192")
+
+@st.cache_resource
+def get_vectorstore():
+    pdf_files = [
+        "./src/poultry_rag/docs/poultry1.pdf", 
+        "./src/poultry_rag/docs/poultry2.pdf",
+        "./src/poultry_rag/docs/poultry3.pdf",
+    ]
+    loaders = [PyPDFLoader(pdf) for pdf in pdf_files]
+    index = VectorstoreIndexCreator(
+        embedding=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L12-v2'),
+        text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    ).from_loaders(loaders)
+    return index.vectorstore
+
+# ✅ Web Search Function
+def search_web(query):
+    url = f"https://www.searchapi.io/api/v1/search?engine=duckduckgo&q={query}&api_key={GOOGLE_SEARCH_API}"
+    response = requests.get(url)
+    data = response.json()
+    if "organic_results" in data:
+        results = data["organic_results"]
+        top_results = "\n\n".join([f"**🔗 [{res['title']}]({res['link']})**\n{res['snippet']}" for res in results[:3]])
+        return top_results
+    return "No relevant web results found."
+
+# ✅ YouTube Video Search
+def search_youtube_videos(query):
+    try:
+        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&type=video&key={YOUTUBE_API_KEY}"
+        response = requests.get(url)
+        data = response.json()
+        
+        if "items" in data:
+            videos = data["items"][:3]  # Get top 3 videos
+            if not videos:
+                return "No videos found."
+
+            video_html = ""
+            for vid in videos:
+                video_id = vid["id"]["videoId"]
+                title = vid["snippet"]["title"]
+                video_html += f'🎥 **[{title}](https://www.youtube.com/watch?v={video_id})**\n\n'
+            return video_html
+        
+        return "No video results found."
+    
+    except Exception as e:
+        return f"❌ Error fetching videos: {str(e)}"
+
+# ✅ Function to check if the query is related to Cupping Therapy
+def is_relevant_query(query):
+    relevant_keywords = ["poultry"]
+    query_lower = query.lower()
+    return any(keyword in query_lower for keyword in relevant_keywords)
+
+# ✅ Show previous messages to maintain chat history
 for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).markdown(msg["content"])
+    role = "user" if msg["role"] == "user" else "assistant"
+    st.chat_message(role).markdown(msg["content"])
+
+# ✅ Take user input
+prompt = st.chat_input("Ask me anything about Poultry Farming!")
 
 if prompt:
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    if "poultry" not in prompt.lower():
-        response = "⚠️ This bot only answers poultry-related questions."
-    else:
-        try:
-            response = "### 🐔 Knowledge Base Response\n"
-            seen_responses = set()
+    try:
+        vectorstore = get_vectorstore()
+        if vectorstore is None:
+            st.error("Failed to load the document")
 
-            if vectorstore:
-                retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
-                chain = RetrievalQA.from_chain_type(
-                    llm=GoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=GOOGLE_API_KEY),
-                    retriever=retriever,
-                    return_source_documents=True
-                )
+        # ✅ Step 1: Search in Knowledge Base
+        chain = RetrievalQA.from_chain_type(
+            llm=groq_chat,
+            chain_type='stuff',
+            retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+            return_source_documents=True  
+        )    
+        kb_result = chain({"query": prompt, "chat_history": st.session_state.chat_history})
+        kb_response = kb_result["result"]
 
-                result = chain.invoke({"query": prompt})
-                knowledge_response = ""
+        # ✅ Step 2: Web Search & YouTube Search (Only for Relevant Queries)
+        if is_relevant_query(prompt):
+            web_response = search_web(prompt)
+            videos_response = search_youtube_videos(prompt)
+        else:
+            web_response = "❌ This chatbot is specialized for poultry only. Please ask relevant questions."
+            videos_response = "❌ No video results as this query is not related to poultry."
 
-                for doc in result["source_documents"]:
-                    content = doc.page_content.strip()
-                    source_pdf = doc.metadata.get("source", "Unknown PDF")
+        # ✅ Display assistant response with all sources
+        final_response = f"""
+### 📖 Knowledge Base Response:
+{kb_response}
 
-                    if content in seen_responses:
-                        continue
-                    seen_responses.add(content)
+---
 
-                    # ✅ Extracted Text
-                    knowledge_response += f"\n\n📖 **Text from {source_pdf}:**\n{content}\n"
+### 🌍 Web Search Results:
+{web_response}
 
-                    # ✅ Extract Tables
-                    if "tables" in doc.metadata and doc.metadata["tables"]:
-                        for j, table in enumerate(doc.metadata["tables"]):
-                            df = pd.DataFrame(table)  # Convert dictionary back to DataFrame
-                            knowledge_response += f"\n\n📊 **Table {j+1} from {source_pdf}:**\n"
-                            knowledge_response += df.to_markdown()
+---
 
-                    # ✅ Extract Images
-                    if "images" in doc.metadata:
-                        for img_index, img_bytes in enumerate(doc.metadata["images"]):
-                            img_pil = Image.open(BytesIO(img_bytes))
-                            st.subheader(f"🖼️ Image {img_index+1} from {source_pdf}")
-                            st.image(img_pil, use_column_width=True)
+### 🎥 Video Results:
+{videos_response}
+"""
 
-                response += knowledge_response
+        # ✅ Display the response
+        st.chat_message("assistant").markdown(final_response, unsafe_allow_html=True)
 
-            # 🔍 Web Search Results
-            response += "\n\n## 🔍 Web Search Results\n"
+        # ✅ Feedback Section
+        feedback_option = st.radio("Was this response helpful?", ["Yes", "No"], index=None, key=f"feedback_{len(st.session_state.messages)}")
+        if feedback_option:
+            st.session_state.feedback.append({"query": prompt, "response": kb_response, "feedback": feedback_option})
+            st.success("✅ Thank you for your feedback!")
 
-            search_results = web_search(prompt)
+        # ✅ Save messages in session state
+        st.session_state.messages.append({"role": "assistant", "content": final_response})
+        st.session_state.chat_history.append((prompt, kb_response))
+    
+    except Exception as e:
+        st.error(f"Error: [{str(e)}]")
 
-            if search_results:
-                response += "\n".join(
-                    [f"### [{result['title']}]({result['url']})\n📝 {result.get('snippet', 'No description available.')}\n" for result in search_results]
-                )
-            else:
-                response += "⚠️ No relevant results found."
 
-            # 🎥 Related YouTube Videos
-            response += "\n\n## 🎥 Related YouTube Videos\n"
-            
-            videos = get_youtube_videos(prompt)
-            
-            if videos and videos.strip():
-                response += videos
-            else:
-                response += "⚠️ No relevant videos found."
 
-        except Exception as e:
-            response = f"❌ Error: {str(e)}"
-
-    st.chat_message("assistant").markdown(response)
-    st.session_state.messages.append({"role": "assistant", "content": response})

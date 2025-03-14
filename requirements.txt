@@ -11,5 +11,6 @@ youtube-search-python
 requests
 langchain-community==0.3.19
 sentence-transformers
+numpy>=1.17
 
 
