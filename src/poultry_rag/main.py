@@ -10,7 +10,7 @@ import requests
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
 from langchain_community.document_loaders import PyPDFLoader
-
+import google.generativeai as genai
 
 
 
@@ -79,10 +79,10 @@ groq_chat = ChatGroq(
 @st.cache_resource
 def get_vectorstore():
     pdf_files = [
-        "./src/poultry_rag/docs/poultry1.pdf", 
-        "./src/poultry_rag/docs/poultry2.pdf",
-        "./src/poultry_rag/docs/poultry3.pdf",
-    ]
+        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry1.pdf",
+        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry2.pdf",
+        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry3.pdf",
+]
     loaders = [PyPDFLoader(pdf) for pdf in pdf_files]
     index = VectorstoreIndexCreator(
         embedding=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L12-v2'),
@@ -91,15 +91,46 @@ def get_vectorstore():
     return index.vectorstore
 
 # ✅ Web Search Function
-def search_web(query):
-    url = f"https://www.searchapi.io/api/v1/search?engine=duckduckgo&q={query}&api_key={GOOGLE_SEARCH_API}"
-    response = requests.get(url)
-    data = response.json()
-    if "organic_results" in data:
-        results = data["organic_results"]
-        top_results = "\n\n".join([f"**🔗 [{res['title']}]({res['link']})**\n{res['snippet']}" for res in results[:3]])
-        return top_results
-    return "No relevant web results found."
+
+genai.configure(api_key=GOOGLE_API_KEY)
+# Function to perform Google Search
+def web_search(query, num_results=5):
+    """Fetch top search results from Google Custom Search API."""
+    GOOGLE_SEARCH_API = os.getenv("GOOGLE_SEARCH_API")
+    GOOGLE_CSE_ID = os.getenv("GOOGLE_CSE_ID")
+
+    if not GOOGLE_SEARCH_API or not GOOGLE_CSE_ID:
+        print("⚠️ API Key or Search Engine ID is missing!")
+        return []
+
+    try:
+        url = f"https://www.googleapis.com/customsearch/v1"
+        params = {
+            "q": query,
+            "key": GOOGLE_SEARCH_API,
+            "cx": GOOGLE_CSE_ID,
+            "num": num_results
+        }
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raise an error for bad responses
+
+        results = response.json().get("items", [])
+        search_results = []
+
+        for item in results:
+            search_results.append({
+                "title": item.get("title", "No Title"),
+                "url": item.get("link", "#"),
+                "snippet": item.get("snippet", "No description available.")
+            })
+
+        return search_results
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error fetching web search results: {e}")
+        return []
+
+
 
 # ✅ YouTube Video Search
 def search_youtube_videos(query):
@@ -160,7 +191,7 @@ if prompt:
 
         # ✅ Step 2: Web Search & YouTube Search (Only for Relevant Queries)
         if is_relevant_query(prompt):
-            web_response = search_web(prompt)
+            web_response = web_search(prompt)
             videos_response = search_youtube_videos(prompt)
         else:
             web_response = "❌ This chatbot is specialized for poultry only. Please ask relevant questions."
