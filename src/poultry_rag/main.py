@@ -76,14 +76,14 @@ groq_chat = ChatGroq(
     groq_api_key=GROQ_API_KEY,
     model_name="llama3-8b-8192")
 
+#file path
+
 @st.cache_resource
 def get_vectorstore():
     # Fix BASE_DIR by getting the correct parent directory
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))  
 
-    # Debug: Print correct BASE_DIR
-    st.write(f"BASE_DIR resolved to: {BASE_DIR}")
-
+   
     # Adjust file paths (Make sure "src/poultry_rag" is not duplicated)
     pdf_files = [
         os.path.join(BASE_DIR, "docs", "poultry1.pdf"),
@@ -93,7 +93,6 @@ def get_vectorstore():
 
     # Debug: Print resolved paths
     for pdf in pdf_files:
-        st.write(f"Checking file path: {pdf}")
         if not os.path.exists(pdf):
             st.error(f"File not found: {pdf}")
             raise FileNotFoundError(f"File not found: {pdf}")
@@ -108,6 +107,7 @@ def get_vectorstore():
     ).from_loaders(loaders)
 
     return index.vectorstore
+
 # ✅ Web Search Function
 
 genai.configure(api_key=GOOGLE_API_KEY)
