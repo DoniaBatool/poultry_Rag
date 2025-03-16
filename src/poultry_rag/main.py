@@ -76,18 +76,30 @@ groq_chat = ChatGroq(
     groq_api_key=GROQ_API_KEY,
     model_name="llama3-8b-8192")
 
-@st.cache_resource
+@st.cache_resource  # Caches the vectorstore to optimize performance
 def get_vectorstore():
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get script's base directory
+
     pdf_files = [
-        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry1.pdf",
-        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry2.pdf",
-        r"C:\Users\Leo\Desktop\poultry_rag\src\poultry_rag\docs\poultry3.pdf",
-]
+        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry1.pdf"),
+        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry2.pdf"),
+        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry3.pdf"),
+    ]
+
+    # Check if files exist to avoid errors
+    for pdf in pdf_files:
+        if not os.path.exists(pdf):
+            raise FileNotFoundError(f"File not found: {pdf}")
+
+    # Load PDFs
     loaders = [PyPDFLoader(pdf) for pdf in pdf_files]
+
+    # Create vector store
     index = VectorstoreIndexCreator(
         embedding=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L12-v2'),
         text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     ).from_loaders(loaders)
+
     return index.vectorstore
 
 # ✅ Web Search Function
