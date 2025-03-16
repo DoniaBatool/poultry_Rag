@@ -78,20 +78,20 @@ groq_chat = ChatGroq(
 
 @st.cache_resource
 def get_vectorstore():
-    # Get correct base directory (parent of current script)
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # No extra nesting
+    # Fix BASE_DIR by getting the correct parent directory
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))  
 
-    # Debug: Print BASE_DIR in Streamlit
+    # Debug: Print correct BASE_DIR
     st.write(f"BASE_DIR resolved to: {BASE_DIR}")
 
-    # Correct file paths
+    # Adjust file paths (Make sure "src/poultry_rag" is not duplicated)
     pdf_files = [
-        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry1.pdf"),
-        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry2.pdf"),
-        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry3.pdf"),
+        os.path.join(BASE_DIR, "docs", "poultry1.pdf"),
+        os.path.join(BASE_DIR, "docs", "poultry2.pdf"),
+        os.path.join(BASE_DIR, "docs", "poultry3.pdf"),
     ]
 
-    # Debug: Print resolved file paths
+    # Debug: Print resolved paths
     for pdf in pdf_files:
         st.write(f"Checking file path: {pdf}")
         if not os.path.exists(pdf):
@@ -108,7 +108,6 @@ def get_vectorstore():
     ).from_loaders(loaders)
 
     return index.vectorstore
-
 # ✅ Web Search Function
 
 genai.configure(api_key=GOOGLE_API_KEY)
