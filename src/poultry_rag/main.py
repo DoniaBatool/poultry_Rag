@@ -76,19 +76,26 @@ groq_chat = ChatGroq(
     groq_api_key=GROQ_API_KEY,
     model_name="llama3-8b-8192")
 
-@st.cache_resource  # Caches the vectorstore to optimize performance
+@st.cache_resource
 def get_vectorstore():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Get script's base directory
+    # Get correct base directory (parent of current script)
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # No extra nesting
 
+    # Debug: Print BASE_DIR in Streamlit
+    st.write(f"BASE_DIR resolved to: {BASE_DIR}")
+
+    # Correct file paths
     pdf_files = [
-        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry1.pdf"),
-        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry2.pdf"),
-        os.path.join(BASE_DIR, "src/poultry_rag/docs/poultry3.pdf"),
+        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry1.pdf"),
+        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry2.pdf"),
+        os.path.join(BASE_DIR, "src", "poultry_rag", "docs", "poultry3.pdf"),
     ]
 
-    # Check if files exist to avoid errors
+    # Debug: Print resolved file paths
     for pdf in pdf_files:
+        st.write(f"Checking file path: {pdf}")
         if not os.path.exists(pdf):
+            st.error(f"File not found: {pdf}")
             raise FileNotFoundError(f"File not found: {pdf}")
 
     # Load PDFs
