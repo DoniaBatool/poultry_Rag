@@ -174,11 +174,25 @@ def search_youtube_videos(query):
     except Exception as e:
         return f"❌ Error fetching videos: {str(e)}"
 
-# ✅ Function to check if the query is related to Cupping Therapy
-def is_relevant_query(query):
-    relevant_keywords = ["poultry"]
-    query_lower = query.lower()
-    return any(keyword in query_lower for keyword in relevant_keywords)
+# ✅ Function to check if the query is related to poultry
+def is_relevant_query_ai(query):
+    """
+    Uses AI to determine whether the query is related to poultry farming, poultry diseases, treatment, or poultry medicine.
+    Returns True if the query is relevant, otherwise False.
+    """
+    prompt = f"""
+    You are an AI assistant specialized in poultry farming. Your task is to analyze user queries and decide if they are related to poultry farming, poultry diseases, poultry medicine, egg production, or poultry treatment.
+    
+    If the question is related to poultry, return only: **"YES"**  
+    If the question is NOT related to poultry, return only: **"NO"**  
+      
+    User Query: "{query}"
+    """
+    
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content([prompt]).text.strip()
+
+    return response == "YES"  # If the model says "YES", return True; otherwise, False
 
 # ✅ Show previous messages to maintain chat history
 for msg in st.session_state.messages:
@@ -193,11 +207,16 @@ if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     try:
+        # ✅ Step 1: Check if the query is poultry-related using AI
+       if not is_relevant_query_ai(prompt):
+        st.chat_message("assistant").markdown("❌ This chatbot is specialized for poultry-related topics. Please ask about poultry farming, diseases, or medicine.")
+        st.stop()  # Properly stops Streamlit execution
+       
         vectorstore = get_vectorstore()
         if vectorstore is None:
             st.error("Failed to load the document")
 
-        # ✅ Step 1: Search in Knowledge Base
+        # ✅ Step 2: Search in Knowledge Base
         chain = RetrievalQA.from_chain_type(
             llm=groq_chat,
             chain_type='stuff',
@@ -207,15 +226,11 @@ if prompt:
         kb_result = chain({"query": prompt, "chat_history": st.session_state.chat_history})
         kb_response = kb_result["result"]
 
-        # ✅ Step 2: Web Search & YouTube Search (Only for Relevant Queries)
-        if is_relevant_query(prompt):
-            web_response = web_search(prompt)
-            videos_response = search_youtube_videos(prompt)
-        else:
-            web_response = "❌ This chatbot is specialized for poultry only. Please ask relevant questions."
-            videos_response = "❌ No video results as this query is not related to poultry."
+        # ✅ Step 3: Web & YouTube Search (Only if relevant)
+        web_response = web_search(prompt)
+        videos_response = search_youtube_videos(prompt)
 
-        # ✅ Display assistant response with all sources
+        # ✅ Step 4: Combine Responses
         final_response = f"""
 ### 📖 Knowledge Base Response:
 {kb_response}
@@ -231,21 +246,19 @@ if prompt:
 {videos_response}
 """
 
-        # ✅ Display the response
+        # ✅ Step 5: Display the Response
         st.chat_message("assistant").markdown(final_response, unsafe_allow_html=True)
 
-        # ✅ Feedback Section
+        # ✅ Step 6: Feedback
         feedback_option = st.radio("Was this response helpful?", ["Yes", "No"], index=None, key=f"feedback_{len(st.session_state.messages)}")
         if feedback_option:
             st.session_state.feedback.append({"query": prompt, "response": kb_response, "feedback": feedback_option})
             st.success("✅ Thank you for your feedback!")
 
-        # ✅ Save messages in session state
+        # ✅ Step 7: Save messages in session state
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         st.session_state.chat_history.append((prompt, kb_response))
     
     except Exception as e:
         st.error(f"Error: [{str(e)}]")
-
-
 
