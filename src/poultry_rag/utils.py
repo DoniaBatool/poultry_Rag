@@ -155,7 +155,7 @@ def get_egg_prices():
         for table in tables:
             # Get the city name from the preceding <h3> tag
             city_heading = table.find_previous("h3")
-            city = city_heading.text.strip() if city_heading else "Unknown City"
+            city = city_heading.text.strip() if city_heading else "Average Egg Rates"
 
             city_data = {"City": city, "Prices": []}
             rows = table.find_all("tr")
