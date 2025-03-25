@@ -124,41 +124,47 @@ def get_weather(city="Karachi"):
 
 
 def get_egg_prices():
+    url = "https://eggrates.pk/"
+
     try:
-        url = "https://eggrates.pk/"  # Website to scrape
+        # Scrape data using Crawl4AI
+        data = c4a.scrape(
+            url,
+            {
+                "date_updated": "//p[contains(text(), 'Date Updated')]/text()",
+                "cities": "//h3[contains(text(), 'Egg Price in')]/text()",
+                "quantities": "//table[@class='kb-table']//tr//td[1]/p/text()",
+                "prices": "//table[@class='kb-table']//tr//td[2]/p/text()"
+            }
+        )
 
-        # Define AI-powered extraction rules
-        extraction_rules = {
-            "Cities": "//h3[contains(text(),'Egg Price in')]/text()",
-            "Quantities": "//table[@class='kb-table']//tr//td[1]/p/text()",
-            "Prices": "//table[@class='kb-table']//tr//td[2]/p/text()",
-        }
+        # Extract scraped data
+        date_updated = data.get("date_updated", ["Unknown"])[0].replace("Date Updated:", "").strip()
+        cities = [city.replace("Egg Price in", "").replace("Today", "").strip() for city in data.get("cities", [])]
+        quantities = data.get("quantities", [])
+        prices = data.get("prices", [])
 
-        # Perform AI-powered scraping
-        scraped_data = c4a.scrape(url, extraction_rules)
-
-        # Structure the extracted data
+        # Organize extracted data
         egg_prices = []
-        cities = scraped_data.get("Cities", [])
-        quantities = scraped_data.get("Quantities", [])
-        prices = scraped_data.get("Prices", [])
+        num_entries_per_city = 3  # Assuming 3 entries per city
 
-        # Loop through the extracted data and group it per city
         for i, city in enumerate(cities):
-            city_name = city.replace("Egg Price in", "").strip().replace("Today", "").strip()
-            city_data = {"City": city_name, "Prices": []}
+            city_data = {"City": city, "Date Updated": date_updated, "Prices": []}
 
-            # Extract prices per city
-            for j in range(i * 3, min((i + 1) * 3, len(quantities))):
-                city_data["Prices"].append({
-                    "Quantity": quantities[j].strip(),
-                    "Price": prices[j].strip() if j < len(prices) else "N/A"
-                })
+            start_idx = i * num_entries_per_city
+            end_idx = min((i + 1) * num_entries_per_city, len(quantities))
+
+            for j in range(start_idx, end_idx):
+                if j < len(prices):
+                    city_data["Prices"].append({
+                        "Quantity": quantities[j],
+                        "Price": prices[j]
+                    })
 
             egg_prices.append(city_data)
 
         return egg_prices if egg_prices else ["⚠️ No relevant results found."]
-    
+
     except Exception as e:
         print(f"Error fetching egg prices: {e}")
         return ["⚠️ Unable to fetch egg prices."]

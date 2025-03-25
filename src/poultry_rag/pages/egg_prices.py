@@ -12,6 +12,7 @@ egg_data = get_egg_prices()
 if isinstance(egg_data, list) and egg_data and isinstance(egg_data[0], dict):
     for entry in egg_data:
         st.markdown(f"## 📍 {entry.get('City', 'Unknown City')}")  # City name as header
+        st.write(f"📅 **Date Updated**: {entry.get('Date Updated', 'Not Available')}")
 
         # Display egg price details
         for price_entry in entry.get("Prices", []):
@@ -20,5 +21,6 @@ if isinstance(egg_data, list) and egg_data and isinstance(egg_data[0], dict):
         st.divider()  # Add a divider for better readability
 else:
     st.error("⚠️ Unable to fetch egg price data. Please try again later.")
+
 
 
