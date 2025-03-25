@@ -40,16 +40,23 @@ else:
     st.error("⚠️ Unable to fetch weather data. Please check your internet or API key.")
 
 # ✅ Sidebar Navigation
+
 with st.sidebar:
+    
     st.header("🐔 Quick Access")
+
     with st.expander("🧪 Laboratory"):
-        st.markdown("[Lab Report Analysis](pages/lab_analysis.py)")
+        st.page_link("pages/lab_analysis.py", label="Lab Report Analysis")
+
     with st.expander("📊 Financial Tools"):
-        st.markdown("[Profit Calculator](pages/profit_calculator.py)")
+        st.page_link("pages/profit_calculator.py", label="Profit Calculator")
+
     with st.expander("🩺 Disease & Treatment"):
-        st.markdown("[Disease Diagnosis](pages/disease_diagnose.py)")
+        st.page_link("pages/disease_diagnose.py", label="Disease Diagnosis")
+
     with st.expander("🥚 Market Updates"):
-        st.markdown("[Latest Egg Rates](pages/egg_prices.py)")
+        st.page_link("pages/egg_prices.py", label="Latest Egg Rates")
+
 
 # ✅ Initialize session state
 if "messages" not in st.session_state:
