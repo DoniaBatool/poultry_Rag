@@ -10,6 +10,12 @@ import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
 import crawl4ai as c4a
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+
 
 # Load environment variables (Only once)
 load_dotenv()
@@ -121,45 +127,46 @@ def get_weather(city="Karachi"):
         return None, None, None, None, ["⚠️ Unable to fetch weather data."]
     
 # Function to fetch latest egg prices from eggrates.pk used crawl4ai
-
-
 def get_egg_prices():
     url = "https://eggrates.pk/"
 
     try:
-        # Scrape data using Crawl4AI
-        data = c4a.scrape(
-            url,
-            {
-                "date_updated": "//p[contains(text(), 'Date Updated')]/text()",
-                "cities": "//h3[contains(text(), 'Egg Price in')]/text()",
-                "quantities": "//table[@class='kb-table']//tr//td[1]/p/text()",
-                "prices": "//table[@class='kb-table']//tr//td[2]/p/text()"
-            }
-        )
+        # ✅ Setup Selenium WebDriver (Headless Mode for Faster Scraping)
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # Run in background
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
 
-        # Extract scraped data
-        date_updated = data.get("date_updated", ["Unknown"])[0].replace("Date Updated:", "").strip()
-        cities = [city.replace("Egg Price in", "").replace("Today", "").strip() for city in data.get("cities", [])]
-        quantities = data.get("quantities", [])
-        prices = data.get("prices", [])
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
 
-        # Organize extracted data
+        # ✅ Load the website
+        driver.get(url)
+        time.sleep(3)  # Wait for content to load
+
+        # ✅ Extract page source and parse with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        driver.quit()  # Close the browser
+
+        # ✅ Find all tables with egg prices
         egg_prices = []
-        num_entries_per_city = 3  # Assuming 3 entries per city
+        tables = soup.find_all("table", class_="kb-table")
 
-        for i, city in enumerate(cities):
-            city_data = {"City": city, "Date Updated": date_updated, "Prices": []}
+        for table in tables:
+            # Get the city name from the preceding <h3> tag
+            city_heading = table.find_previous("h3")
+            city = city_heading.text.strip() if city_heading else "Unknown City"
 
-            start_idx = i * num_entries_per_city
-            end_idx = min((i + 1) * num_entries_per_city, len(quantities))
+            city_data = {"City": city, "Prices": []}
+            rows = table.find_all("tr")
 
-            for j in range(start_idx, end_idx):
-                if j < len(prices):
-                    city_data["Prices"].append({
-                        "Quantity": quantities[j],
-                        "Price": prices[j]
-                    })
+            # Extract price details from the table
+            for row in rows[1:]:  # Skip the header row
+                columns = row.find_all("td")
+                if len(columns) >= 2:
+                    quantity = columns[0].text.strip()
+                    price = columns[1].text.strip()
+                    city_data["Prices"].append({"Quantity": quantity, "Price": price})
 
             egg_prices.append(city_data)
 
@@ -168,7 +175,6 @@ def get_egg_prices():
     except Exception as e:
         print(f"Error fetching egg prices: {e}")
         return ["⚠️ Unable to fetch egg prices."]
-
 
 
 # Function for multimodal file analysis

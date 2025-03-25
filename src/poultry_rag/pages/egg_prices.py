@@ -2,7 +2,7 @@ import streamlit as st
 from utils import get_egg_prices
 
 # Page Title
-st.title("🥚 Latest Poultry Egg Rates")
+st.title("🥚 Daily Poultry Egg Rates!")
 st.subheader("Updated rates from [eggrates.pk](https://eggrates.pk)")
 
 # Fetch egg prices
@@ -12,7 +12,7 @@ egg_data = get_egg_prices()
 if isinstance(egg_data, list) and egg_data and isinstance(egg_data[0], dict):
     for entry in egg_data:
         st.markdown(f"## 📍 {entry.get('City', 'Unknown City')}")  # City name as header
-        st.write(f"📅 **Date Updated**: {entry.get('Date Updated', 'Not Available')}")
+        st.write(f"📅 **Updated Today**")
 
         # Display egg price details
         for price_entry in entry.get("Prices", []):
@@ -21,6 +21,3 @@ if isinstance(egg_data, list) and egg_data and isinstance(egg_data[0], dict):
         st.divider()  # Add a divider for better readability
 else:
     st.error("⚠️ Unable to fetch egg price data. Please try again later.")
-
-
-
