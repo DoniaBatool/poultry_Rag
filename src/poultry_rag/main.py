@@ -1,4 +1,3 @@
-
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -69,7 +68,7 @@ groq_chat = ChatGroq(
 # ✅ Load Vector Store (PDF Knowledge Base)
 @st.cache_resource
 def get_vectorstore():
-    BASE_DIR = os.getcwd()  # Streamlit does not support __file__
+    BASE_DIR = os.getcwd()
     pdf_files = [
         os.path.join(BASE_DIR, "docs", "poultry1.pdf"),
         os.path.join(BASE_DIR, "docs", "poultry2.pdf"),
@@ -110,8 +109,7 @@ def is_relevant_query_ai(query):
 # ✅ Web Search Function
 def web_search(query, num_results=5):
     if not GOOGLE_SEARCH_API or not GOOGLE_CSE_ID:
-        st.error("⚠️ Google Search API Key or CSE ID is missing!")
-        return []
+        return "❌ No web search results available."
 
     try:
         url = "https://www.googleapis.com/customsearch/v1"
@@ -120,28 +118,45 @@ def web_search(query, num_results=5):
         response.raise_for_status()
 
         data = response.json()
-        print("🔍 Web Search Response:", data)
+        results = data.get("items", [])
 
-        return data.get("items", [])
+        if not results:
+            return "❌ No relevant web search results found."
+
+        formatted_results = "\n\n".join([
+            f"🔗 **[{item.get('title', 'No Title')}]({item.get('link', '#')})**\n{item.get('snippet', 'No description available.')}"
+            for item in results
+        ])
+
+        return formatted_results
 
     except requests.exceptions.RequestException as e:
-        st.error(f"❌ Web search failed: {e}")
-        return []
+        return f"❌ Web search failed: {e}"
 
 # ✅ YouTube Search Function
-def search_youtube_videos(query):
+def search_youtube_videos(query, num_results=5):
+    if not YOUTUBE_API_KEY:
+        return "❌ No video results available."
+
     try:
-        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&type=video&key={YOUTUBE_API_KEY}"
+        url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&type=video&maxResults={num_results}&key={YOUTUBE_API_KEY}"
         response = requests.get(url)
         data = response.json()
 
-        print("🎥 YouTube Search Response:", data)
+        videos = data.get("items", [])
 
-        return data.get("items", [])
+        if not videos:
+            return "❌ No relevant YouTube videos found."
+
+        formatted_videos = "\n\n".join([
+            f"🎥 **[{vid['snippet']['title']}](https://www.youtube.com/watch?v={vid['id']['videoId']})**\n📺 {vid['snippet']['channelTitle']}"
+            for vid in videos
+        ])
+
+        return formatted_videos
 
     except Exception as e:
-        st.error(f"❌ YouTube search failed: {str(e)}")
-        return []
+        return f"❌ YouTube search failed: {str(e)}"
 
 # ✅ Show previous messages
 for msg in st.session_state.messages:
@@ -155,35 +170,42 @@ if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     try:
-        # ✅ Step 1: Check if query is poultry-related
         if not is_relevant_query_ai(prompt):
             st.chat_message("assistant").markdown("❌ This chatbot is specialized for poultry-related topics.")
             st.stop()
 
-        # ✅ Step 2: Load Knowledge Base
         vectorstore = get_vectorstore()
         if vectorstore is None:
             st.error("Failed to load the document")
             st.stop()
 
-        # ✅ Step 3: Query Knowledge Base
         chain = RetrievalQA.from_chain_type(
             llm=groq_chat,
             chain_type='stuff',
             retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
             return_source_documents=True
         )
-        kb_result = chain({"query": prompt, "chat_history": st.session_state.chat_history})
-        kb_response = kb_result.get("result", "❌ No knowledge base results.")
+        kb_response = chain({"query": prompt, "chat_history": st.session_state.chat_history}).get("result", "❌ No knowledge base results.")
 
-        # ✅ Step 4: Fetch Web & YouTube Results
-        web_response = web_search(prompt) or "❌ No web search results."
-        videos_response = search_youtube_videos(prompt) or "❌ No videos found."
+        web_response = web_search(prompt)
+        videos_response = search_youtube_videos(prompt)
 
-        # ✅ Step 5: Display Response
-        final_response = f"### 📖 Knowledge Base:\n{kb_response}\n\n### 🌍 Web:\n{web_response}\n\n### 🎥 Videos:\n{videos_response}"
+        final_response = f"""
+### 📖 Knowledge Base Response:
+{kb_response}
+
+---
+
+### 🌍 Web Search Results:
+{web_response}
+
+---
+
+### 🎥 Video Results:
+{videos_response}
+"""
         st.chat_message("assistant").markdown(final_response, unsafe_allow_html=True)
-        st.session_state.messages.append({"role": "assistant", "content": final_response})
 
     except Exception as e:
-        st.error(f"Error: [{str(e)}]")
+        st.error(f"Error: [{str(e)}]")  
+
