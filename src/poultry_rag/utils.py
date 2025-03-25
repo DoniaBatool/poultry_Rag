@@ -9,7 +9,7 @@ import streamlit as st
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
-
+import crawl4ai as c4a
 
 # Load environment variables (Only once)
 load_dotenv()
@@ -120,47 +120,46 @@ def get_weather(city="Karachi"):
         print(f"Error fetching weather data: {e}")
         return None, None, None, None, ["⚠️ Unable to fetch weather data."]
     
-# Function to fetch latest egg prices from eggrates.pk
+# Function to fetch latest egg prices from eggrates.pk used crawl4ai
 
 
 def get_egg_prices():
     try:
-        url = "https://eggrates.pk/"  # URL to scrape
-        response = requests.get(url)
-        response.raise_for_status()  # Raise error if request fails
-        
-        soup = BeautifulSoup(response.text, "html.parser")
+        url = "https://eggrates.pk/"  # Website to scrape
 
-        cities = ["Islamabad", "Lahore", "Karachi", "Peshawar"]
+        # Define AI-powered extraction rules
+        extraction_rules = {
+            "Cities": "//h3[contains(text(),'Egg Price in')]/text()",
+            "Quantities": "//table[@class='kb-table']//tr//td[1]/p/text()",
+            "Prices": "//table[@class='kb-table']//tr//td[2]/p/text()",
+        }
+
+        # Perform AI-powered scraping
+        scraped_data = c4a.scrape(url, extraction_rules)
+
+        # Structure the extracted data
         egg_prices = []
+        cities = scraped_data.get("Cities", [])
+        quantities = scraped_data.get("Quantities", [])
+        prices = scraped_data.get("Prices", [])
 
-        for city in cities:
-            city_data = {"City": city}
-            city_heading = soup.find("h3", string=lambda text: text and city in text)
+        # Loop through the extracted data and group it per city
+        for i, city in enumerate(cities):
+            city_name = city.replace("Egg Price in", "").strip().replace("Today", "").strip()
+            city_data = {"City": city_name, "Prices": []}
 
-            if city_heading:
-                # Find the nearest column containing price data
-                city_column = city_heading.find_parent("div", class_="wp-block-column")
+            # Extract prices per city
+            for j in range(i * 3, min((i + 1) * 3, len(quantities))):
+                city_data["Prices"].append({
+                    "Quantity": quantities[j].strip(),
+                    "Price": prices[j].strip() if j < len(prices) else "N/A"
+                })
 
-                if city_column:
-                    price_paragraphs = city_column.find_all("p", class_="has-text-align-center")
-
-                    # Extract relevant price details
-                    for para in price_paragraphs:
-                        text = para.get_text(strip=True)
-
-                        if "Dozan" in text or "1 Dozen" in text:
-                            city_data["Price Per Dozen"] = text
-                        elif "1 Egg" in text or "Egg Rate" in text:
-                            city_data["Price Per Egg"] = text
-                        elif "30" in text and ("Tray" in text or "Dozen" in text):
-                            city_data["30 Eggs Tray Price"] = text
-
-                    egg_prices.append(city_data)
+            egg_prices.append(city_data)
 
         return egg_prices if egg_prices else ["⚠️ No relevant results found."]
     
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"Error fetching egg prices: {e}")
         return ["⚠️ Unable to fetch egg prices."]
 
