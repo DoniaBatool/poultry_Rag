@@ -14,5 +14,3 @@ sentence-transformers
 numpy>=1.17
 pytesseract>=0.3.13
 langchain-groq
-crawl4ai
-
