@@ -1,16 +1,26 @@
 streamlit
 pandas
-pillow
+Pillow
 python-dotenv
+requests
+numpy>=1.17
+PyMuPDF
+pytesseract>=0.3.13
+
+# LangChain-related
 langchain
+langchain-community
 langchain-google-genai
-google-generativeai
+langchain-groq
+sentence-transformers
 openai
 chromadb
+google-generativeai
+
+# YouTube API
 youtube-search-python
-requests
-langchain-community
-sentence-transformers
-numpy>=1.17
-pytesseract>=0.3.13
-langchain-groq
+
+# For scraping + selenium
+beautifulsoup4
+selenium
+webdriver-manager
