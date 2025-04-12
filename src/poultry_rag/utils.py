@@ -4,12 +4,12 @@ import requests
 from dotenv import load_dotenv
 import pandas as pd
 from PIL import Image
-import fitz  
+import fitz
 import streamlit as st
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
-import crawl4ai as c4a
+#import crawl4ai as c4a
 import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
