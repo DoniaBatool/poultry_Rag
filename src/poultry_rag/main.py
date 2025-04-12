@@ -75,12 +75,13 @@ groq_chat = ChatGroq(
 # ✅ Load Vector Store (PDF Knowledge Base)
 @st.cache_resource
 def get_vectorstore():
-    BASE_DIR = os.getcwd()
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # ✔️ Fix path issue
     pdf_files = [
         os.path.join(BASE_DIR, "docs", "poultry1.pdf"),
         os.path.join(BASE_DIR, "docs", "poultry2.pdf"),
         os.path.join(BASE_DIR, "docs", "poultry3.pdf"),
     ]
+
 
     # ✅ Debug Missing PDFs
     for pdf in pdf_files:
