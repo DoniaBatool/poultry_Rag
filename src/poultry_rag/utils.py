@@ -126,29 +126,19 @@ def get_weather(city="Karachi"):
         print(f"Error fetching weather data: {e}")
         return None, None, None, None, ["⚠️ Unable to fetch weather data."]
     
-# Function to fetch latest egg prices from eggrates.pk used crawl4ai
+
 def get_egg_prices():
     url = "https://eggrates.pk/"
 
     try:
-        # ✅ Setup Selenium WebDriver (Headless Mode for Faster Scraping)
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Run in background
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
 
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        # ✅ Load the website
-        driver.get(url)
-        time.sleep(3)  # Wait for content to load
-
-        # ✅ Extract page source and parse with BeautifulSoup
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        driver.quit()  # Close the browser
-
-        # ✅ Find all tables with egg prices
         egg_prices = []
         tables = soup.find_all("table", class_="kb-table")
 
@@ -160,7 +150,6 @@ def get_egg_prices():
             city_data = {"City": city, "Prices": []}
             rows = table.find_all("tr")
 
-            # Extract price details from the table
             for row in rows[1:]:  # Skip the header row
                 columns = row.find_all("td")
                 if len(columns) >= 2:
@@ -175,6 +164,7 @@ def get_egg_prices():
     except Exception as e:
         print(f"Error fetching egg prices: {e}")
         return ["⚠️ Unable to fetch egg prices."]
+
 
 
 # Function for multimodal file analysis
@@ -221,7 +211,7 @@ def calculate_profit(feed_cost, medicine_cost, labor_cost, egg_sales, meat_sales
     return profit
 
 
-# Poultry Disease Diagnosis using Gemini Vision API
+# Poultry Disease Diagnosis using Gemini 
 def diagnose_poultry_disease(image):
     genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel("gemini-1.5-pro-latest")
