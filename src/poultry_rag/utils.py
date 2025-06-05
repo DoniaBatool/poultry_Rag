@@ -214,7 +214,7 @@ def calculate_profit(feed_cost, medicine_cost, labor_cost, egg_sales, meat_sales
 # Poultry Disease Diagnosis using Gemini 
 def diagnose_poultry_disease(image):
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-pro-latest")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     response = model.generate_content(["Analyze this image and diagnose any poultry disease. Provide possible symptoms and treatments.", image])
     return response.text
 
